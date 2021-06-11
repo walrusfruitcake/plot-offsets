@@ -1,5 +1,5 @@
 #!/bin/env python
-import sys, getopt
+import argparse
 import csv
 from jinja2 import Template
 # from jinja2 import Environment, FileSystemLoader, select_autoescape
@@ -9,8 +9,8 @@ destination_doc_name = "output-doc"
 destination_svg = f'./{destination_doc_name}.svg'
 source_csv = "./test.csv"
 
-x_label = "Scaled X [mm]"
-y_label = "Scaled Y [mm]" 
+x_label_default = "Scaled X [mm]"
+y_label_default = "Scaled Y [mm]"
 
 svg_doc_details = {
   'name': destination_doc_name,
@@ -19,17 +19,25 @@ svg_doc_details = {
   'units': 'mm'
 }
 
-path = {
-  'id': 20,
-  'points': []
-}
+paths = []
 
 class Point:
   def __init__(self, x, y):
     self.x = x
     self.y = y
 
-def read_points_from_csv(csv_filename):
+class Path:
+  def __init__(self, path_id, points):
+    self.id = path_id
+    self.points = points
+
+class CsvDeets:
+  def __init__(self, csv_files, x_label, y_label):
+    self.csv_files = csv_files
+    self.x_label = x_label
+    self.y_label = y_label
+
+def read_points_from_csv(csv_filename, x_label, y_label):
   points = []
   with open(csv_filename, 'r', newline='') as f:
     r = csv.reader(f, delimiter=',')
@@ -42,48 +50,44 @@ def read_points_from_csv(csv_filename):
   return points
 
 def get_args():
-  argv = sys.argv[1:]
-  help_string = 'make_an_svg.py [-h]  -i <input csv>  [-o <output svg>]'
-  detail_help_string = 'make_an_svg.py  [-h|--help]  -i|--input-csv <path>  [-o|--output-svg <path>]'
-  try:
-    opts, args = getopt.getopt(argv,"hi:o:",["help","input-csv=","output-svg="])
-  except getopt.GetoptError:
-    print(help_string)
-    sys.exit(2)
-  if '-h' in opts:
-    print('help reqd')
-  for opt, arg in opts:
-    if opt in ('-h', '--help'):
-      print(detail_help_string)
-      sys.exit()
-    elif opt in ("-i", "--input-csv"):
-      source_csv = arg
-    elif opt in ("-o", "--output-svg"):
-      destination_svg = arg
-  print('Input file is: ', source_csv)
-  print('Output file is: ', destination_svg)
-  return source_csv, destination_svg
+  parser = argparse.ArgumentParser(description='Build an svg of points from a csv of offsets')
+  parser.add_argument('input_csv', metavar='CSV', type=str, nargs='+',
+          help='the input csv(s) containing offset positions, one path per csv file')
+  parser.add_argument('-x', '--x-label', metavar='label', type=str,
+          help='the column label for the x values (default \'x\')', default=x_label_default)
+  parser.add_argument('-y', '--y-label', metavar='label', type=str,
+          help='the column label for the y values (default \'y\')', default=y_label_default)
+  parser.add_argument('-o', '--output-svg', metavar='file', type=str,
+          help='the output svg filepath (default stdout)', default='-')
+  args = parser.parse_args()
+  csv_details = CsvDeets(args.input_csv, args.x_label, args.y_label)
+  return csv_details, args.output_svg
 
-source_csv, destination_svg = get_args()
+# print(get_args())
 
-points = read_points_from_csv(source_csv)
-path['points'].extend(points)
+if __name__=='__main__':
+  csv_details, destination_svg = get_args()
+  # print(csv_details.csv_files, csv_details.x_label)
 
-# loader = FileSystemLoader(base_svg)
-# # loader = PackageLoader
-# autoescape=select_autoescape(
-#   enabled_extensions=('xml')
-# )
-# jinja_env = Environment(loader=loader, autoescape=autoescape)
+  id_start=28
+  print(csv_details.csv_files)
+  for i, csv_file in enumerate(csv_details.csv_files):
+    points = read_points_from_csv(csv_file, csv_details.x_label, csv_details.y_label)
+    # print(points)
+    path_id = i + id_start
+    path_to_add = Path(path_id, points)
+    # path['points'].extend(points)
+    paths.append(path_to_add)
 
-print('done reading points')
-result = ''
-with open(base_svg, 'r') as src:
-  template = Template(src.read())
-  result = template.render(details=svg_doc_details, path=path)
+  # print('done reading points')
+  result = ''
+  with open(base_svg, 'r') as src:
+    template = Template(src.read())
+    result = template.render(details=svg_doc_details, paths=paths)
 
-# template = jinja_env.get_template(base_svg)
-print(result)
-with open(destination_svg, 'w') as f:
-  f.write(result)
+  if (destination_svg == '-'):
+    print(result)
+  else:
+    with open(destination_svg, 'w') as f:
+      f.write(result)
 

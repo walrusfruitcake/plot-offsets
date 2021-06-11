@@ -26,7 +26,7 @@
      inkscape:zoom="0.35"
      inkscape:cx="400"
      inkscape:cy="560"
-     inkscape:document-units="mm"
+     inkscape:document-units="{{ details.units }}"
      inkscape:current-layer="layer1"
      inkscape:document-rotation="0"
      showgrid="false"
@@ -51,9 +51,11 @@
      inkscape:label="Layer 1"
      inkscape:groupmode="layer"
      id="layer1">
+    {% for path in paths %}
     <path
-       style="fill:none;stroke:#000000;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       style="fill:none;stroke:#000000;stroke-width:0.025;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
        d="M {% for p in path.points:%} {{ p.x }},{{ p.y }}{% endfor %}"
        id="path{{path.id}}" />
+    {% endfor %}
   </g>
 </svg>
